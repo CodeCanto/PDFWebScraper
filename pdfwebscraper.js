@@ -135,7 +135,6 @@ const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
 
   await page.waitForResponse((response) => response.status() === 200);
 
-  //feature: possible selectors
   if (accountUsername && accountPassword) {
     await page.waitForSelector("#email");
     await page.type("#email", accountUsername);
@@ -198,8 +197,6 @@ const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
 
     console.log("PDFs merged successfully.");
   }
-
-  //feature: after merged delete all other pdfs
 
   if (mergeCheck === "Y" || "y") {
     mergePDFs("PDFfiles");
