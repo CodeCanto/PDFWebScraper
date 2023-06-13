@@ -1,15 +1,24 @@
 import puppeteer from "puppeteer";
 import inquirer from "inquirer";
 import fs from "fs";
-import pkg from "pdf-lib";
-const PDFDocument = pkg.PDFDocument;
+import pdflib from "pdf-lib";
+const PDFDocument = pdflib.PDFDocument;
 
 const programPrompt = async () => {
+  console.log(
+    "Make sure PDFfiles folder is clear if wanting to merge multiple PDF snapshots."
+  );
   const enteredValue = await inquirer.prompt({
     type: "input",
     name: "command",
     message:
       "Type 1 for a pdf snapshot of a single web page or 2 for a specific webpage's content and all webpage content it links to.",
+    validate: function (input) {
+      if (input === "1" || input === "2") {
+        return true;
+      }
+      return "Not a valid command. Please enter 1 or 2.";
+    },
   });
 
   const enteredUrl = await inquirer.prompt({
@@ -20,15 +29,24 @@ const programPrompt = async () => {
 
   const isAccountDetailsRequired = await inquirer.prompt({
     type: "input",
-    name: "url",
+    name: "answer",
     message:
       "Does the webpage require a username/email and password log in details? Y for Yes, N for No.",
+    validate: function (input) {
+      if (input === "y" || input === "Y" || input === "n" || input === "N") {
+        return true;
+      }
+      return "Not a valid command. Please enter Y, y for Yes or N, n for No.";
+    },
   });
 
   let accountUsername = "";
   let accountPassword = "";
 
-  if (isAccountDetailsRequired === "Y" || isAccountDetailsRequired === "y") {
+  if (
+    isAccountDetailsRequired.answer === "Y" ||
+    isAccountDetailsRequired.answer === "y"
+  ) {
     accountUsername = await inquirer.prompt({
       type: "input",
       name: "userName",
@@ -54,9 +72,6 @@ const programPrompt = async () => {
       accountUsername.userName,
       accountPassword.password
     );
-  } else {
-    console.log("That is not a valid command. Try again, CTRL+C to quit.");
-    programPrompt();
   }
 };
 
@@ -75,18 +90,49 @@ const getPDFpage = async (userUrl, accountUsername, accountPassword) => {
   const page = await browser.newPage();
 
   await page.goto(userUrl, {
-    waitUntil: "domcontentloaded",
+    waitUntil: ["domcontentloaded"],
   });
 
   await page.waitForResponse((response) => response.status() === 200);
 
   if (accountUsername && accountPassword) {
-    await page.waitForSelector("#email");
-    await page.type("#email", accountUsername);
-    await page.type("#password", accountPassword);
-    await page.click('button[type="submit"]');
+    try {
+      await page.type('input[type="email"]', accountUsername);
+    } catch {
+      try {
+        await page.type('input[name="email"]', accountUsername);
+      } catch (error) {
+        await page.waitForSelector("#email");
+        await page.type("#email", accountUsername);
+        console.log(error);
+      }
+    }
+
+    try {
+      await page.type('input[type="password"]', accountPassword);
+    } catch {
+      try {
+        await page.type('input[name="password"]', accountPassword);
+      } catch (error) {
+        await page.waitForSelector("#password");
+        await page.type("#password", accountPassword);
+        console.log(error);
+      }
+    }
+
+    try {
+      await page.click('button[type="submit"]');
+    } catch {
+      try {
+        await page.click('button[name="submit"]');
+      } catch {
+        await page.waitForSelector("#submit", { visible: true });
+        await page.click("#submit");
+      }
+    }
+
     await page.waitForNavigation({
-      waitUntil: "domcontentloaded",
+      waitUntil: ["domcontentloaded"],
     });
   }
 
@@ -97,21 +143,21 @@ const getPDFpage = async (userUrl, accountUsername, accountPassword) => {
 
   await browser.close();
 
-  console.log(`${enteredFileName.fileName} saved.`);
+  console.log(`${enteredFileName.fileName} saved to /PDFfiles.`);
 };
 
 const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
   const enteredFileName = await inquirer.prompt({
     type: "input",
     name: "fileName",
-    message: "Name your PDF file: ",
+    message: "Name your PDF files: ",
   });
 
   const mergeCheck = await inquirer.prompt({
     type: "input",
     name: "fileName",
     message:
-      "Would you like to merge all PDF snapshots into one PDF? Y for Yes, N for No",
+      "Would you like to merge all PDF snapshots in /PDFfiles directory into one PDF? Y for Yes, N for No",
   });
 
   const browser = await puppeteer.launch({
@@ -133,15 +179,43 @@ const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
   });
   pageNum++;
 
-  await page.waitForResponse((response) => response.status() === 200);
-
   if (accountUsername && accountPassword) {
-    await page.waitForSelector("#email");
-    await page.type("#email", accountUsername);
-    await page.type("#password", accountPassword);
-    await page.click('button[type="submit"]');
+    try {
+      await page.type('input[type="email"]', accountUsername);
+    } catch {
+      try {
+        await page.type('input[name="email"]', accountUsername);
+      } catch {
+        await page.waitForSelector("#email");
+        await page.type("#email", accountUsername);
+      }
+    }
+
+    try {
+      await page.type('input[type="password"]', accountPassword);
+    } catch {
+      try {
+        await page.type('input[name="password"]', accountPassword);
+      } catch (error) {
+        await page.waitForSelector("#password");
+        await page.type("#password", accountPassword);
+        console.log(error);
+      }
+    }
+
+    try {
+      await page.click('button[type="submit"]');
+    } catch {
+      try {
+        await page.click('button[name="submit"]');
+      } catch {
+        await page.waitForSelector("#submit", { visible: true });
+        await page.click("#submit");
+      }
+    }
+
     await page.waitForNavigation({
-      waitUntil: "domcontentloaded",
+      waitUntil: ["domcontentloaded"],
     });
   }
 
@@ -191,7 +265,7 @@ const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
 
     const mergedPdfFile = await mergedPdf.save();
     await fs.promises.writeFile(
-      `${enteredFileName.fileName}.pdf`,
+      `PDFfiles/${enteredFileName.fileName}merged.pdf`,
       mergedPdfFile
     );
 
@@ -199,12 +273,10 @@ const getPDFpages = async (userUrl, accountUsername, accountPassword) => {
   }
 
   if (mergeCheck === "Y" || "y") {
-    mergePDFs("PDFfiles");
+    mergePDFs(`PDFfiles`);
   }
 
-  console.log(
-    "Process finished, please clear directory for next time to accurately merge pdfs."
-  );
+  console.log(`PDF saved to ${enteredFileName.fileName}`);
   await browser.close();
 };
 
