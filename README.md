@@ -1,6 +1,8 @@
 # PDFWebScraper
 Basic PDF webscraper
 
+Make sure Node is installed and npm i is ran for dependencies.
+
 Uses Puppeteer to save a pdf snapshot of a website page to the PDFfiles folder.
 
 Provides instructions for fruther use after running the pdfwebscraper.js file with node in terminal:
